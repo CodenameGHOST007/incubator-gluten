@@ -65,12 +65,12 @@
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/MergeTree/MergeTreeData.h>
-#include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
+#include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
@@ -1029,6 +1029,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
                 args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
 
                 function_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+            }
+	    else if (isMap(non_nullable_input_type) && isString(non_nullable_output_type))
+            {
+                // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
+                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(non_nullable_input_type);
+                args.emplace_back(addColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
+                args.emplace_back(addColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
+                function_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
             }
             else
             {

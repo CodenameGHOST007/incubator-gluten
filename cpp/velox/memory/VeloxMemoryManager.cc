@@ -111,7 +111,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t shrinkCapacity(uint64_t targetBytes, bool allowSpill, bool allowAbort) override {
-    velox::memory::ScopedMemoryArbitrationContext ctx();
+    velox::memory::ScopedMemoryArbitrationContext ctx{};
     facebook::velox::exec::MemoryReclaimer::Stats status;
     velox::memory::MemoryPool* pool;
     {
@@ -200,8 +200,8 @@ class ArbitratorFactoryRegister {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> listener)
-    : MemoryManager(), listener_(std::move(listener)) {
+VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(kind), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
